@@ -3,100 +3,133 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>Clicker Web App</title>
+    <title>Super Clicker Pro</title>
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <style>
-        /* Подстраиваем цвета под тему пользователя в ТГ */
+        :root {
+            --bg: #0f172a;
+            --card: #1e293b;
+            --text: #f8fafc;
+            --accent: #38bdf8;
+            --btn-save: #22c55e;
+        }
+
         body {
-            background-color: var(--tg-theme-bg-color, #1c1c1d);
-            color: var(--tg-theme-text-color, #ffffff);
-            font-family: sans-serif;
-            text-align: center;
+            background-color: var(--bg);
+            color: var(--text);
+            font-family: 'Inter', sans-serif;
             margin: 0; padding: 20px;
             display: flex; flex-direction: column; align-items: center;
-            user-select: none; /* Чтобы текст не выделялся при тапах */
+            height: 90vh; overflow: hidden; user-select: none;
         }
-        #score { font-size: 48px; font-weight: bold; margin: 30px 0; }
-        
-        .click-btn {
-            background: linear-gradient(135deg, #0088cc, #005580);
-            border: none; border-radius: 50%;
-            width: 160px; height: 160px;
-            box-shadow: 0 10px 25px rgba(0,0,0,0.5);
-            transition: transform 0.1s; cursor: pointer;
+
+        .header { text-align: center; margin-bottom: 30px; }
+        #score { font-size: 52px; font-weight: 900; color: var(--accent); margin: 0; }
+        .mult-tag { background: var(--accent); color: var(--bg); padding: 2px 10px; border-radius: 10px; font-weight: bold; font-size: 14px; }
+
+        .coin-container {
+            position: relative;
+            margin: 40px 0;
         }
-        .click-btn:active { transform: scale(0.92); box-shadow: 0 5px 10px rgba(0,0,0,0.5); }
-        
-        .shop { margin-top: 50px; width: 100%; max-width: 320px; }
-        .shop h3 { margin-bottom: 15px; text-transform: uppercase; letter-spacing: 1px; }
-        
-        .upgrade-btn {
-            background-color: var(--tg-theme-button-color, #3390ec);
-            color: var(--tg-theme-button-text-color, #ffffff);
-            border: none; border-radius: 12px;
-            padding: 15px 20px; width: 100%; font-size: 16px; font-weight: bold;
-            cursor: pointer; display: flex; justify-content: space-between;
-            transition: opacity 0.2s;
+
+        .coin {
+            width: 220px; height: 220px;
+            background: linear-gradient(135deg, #fbbf24, #f59e0b);
+            border-radius: 50%;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 100px; cursor: pointer;
+            box-shadow: 0 0 50px rgba(245, 158, 11, 0.3);
+            transition: transform 0.1s;
+            border: 10px solid rgba(255,255,255,0.2);
         }
-        .upgrade-btn:disabled { background-color: #555; color: #888; cursor: not-allowed; opacity: 0.7; }
+
+        .coin:active { transform: scale(0.9); }
+
+        .controls {
+            width: 100%; max-width: 300px;
+            display: grid; gap: 15px;
+        }
+
+        button {
+            border: none; border-radius: 16px; padding: 15px;
+            font-size: 16px; font-weight: 700; cursor: pointer;
+            transition: 0.2s; color: white;
+        }
+
+        .btn-up { background: var(--card); border: 2px solid var(--accent); }
+        .btn-up:disabled { opacity: 0.3; }
+
+        .btn-save { background: var(--btn-save); margin-top: 10px; box-shadow: 0 4px 15px rgba(34, 197, 94, 0.3); }
+
+        .info { font-size: 12px; color: #94a3b8; margin-top: 10px; }
     </style>
 </head>
 <body>
-    <h2>Коин Кликер</h2>
-    <div id="score">0</div>
-    <button class="click-btn" onclick="clickCoin()"></button>
+    <div class="header">
+        <p id="score">0</p>
+        <span class="mult-tag">Множитель: x<span id="mult-val">1</span></span>
+    </div>
 
-    <div class="shop">
-        <h3>Магазин</h3>
-        <button class="upgrade-btn" id="upgradeBtn" onclick="buyUpgrade()">
-            <span>+1 за клик</span>
-            <span id="cost">Цена: 10</span>
+    <div class="coin-container">
+        <div class="coin" onclick="handleTap()">🟡</div>
+    </div>
+
+    <div class="controls">
+        <button class="btn-up" id="upBtn" onclick="buyUpgrade()">
+            🚀 Улучшить за <span id="cost">10</span>
+        </button>
+        <button class="btn-save" onclick="saveAndExit()">
+            💾 Сохранить и выйти
         </button>
     </div>
 
+    <p class="info">Прогресс сохранится в базе данных бота</p>
+
     <script>
         let tg = window.Telegram.WebApp;
-        tg.expand(); // Растягиваем на весь экран
+        tg.expand();
 
-        // Базовые переменные
-        let score = 0;
-        let clickPower = 1;
-        let upgradeCost = 10;
+        // 1. Получаем данные из ссылки (URL Params)
+        let params = new URLSearchParams(window.location.search);
+        let score = parseInt(params.get('balance')) || 0;
+        let power = parseInt(params.get('mult')) || 1;
+        let cost = 10 * Math.pow(2, power - 1);
 
         const scoreEl = document.getElementById('score');
-        const upgradeBtn = document.getElementById('upgradeBtn');
+        const multEl = document.getElementById('mult-val');
         const costEl = document.getElementById('cost');
+        const upBtn = document.getElementById('upBtn');
 
-        function clickCoin() {
-            score += clickPower;
+        function updateUI() {
+            scoreEl.innerText = score.toLocaleString();
+            multEl.innerText = power;
+            costEl.innerText = cost;
+            upBtn.disabled = score < cost;
+        }
+
+        function handleTap() {
+            score += power;
+            tg.HapticFeedback.impactOccurred('medium');
             updateUI();
-            tg.HapticFeedback.impactOccurred('light'); // Легкая вибрация при клике
         }
 
         function buyUpgrade() {
-            if (score >= upgradeCost) {
-                score -= upgradeCost;
-                clickPower++;
-                upgradeCost = Math.floor(upgradeCost * 1.5); // Цена растет в 1.5 раза
+            if (score >= cost) {
+                score -= cost;
+                power++;
+                cost = Math.floor(cost * 2.5);
+                tg.HapticFeedback.notificationOccurred('success');
                 updateUI();
-                tg.HapticFeedback.notificationOccurred('success'); // Вибрация успеха
-            } else {
-                tg.HapticFeedback.notificationOccurred('error');
             }
         }
 
-        function updateUI() {
-            scoreEl.innerText = score;
-            costEl.innerText = `Цена: ${upgradeCost}`;
-            // Делаем кнопку неактивной, если не хватает монет
-            if (score >= upgradeCost) {
-                upgradeBtn.removeAttribute('disabled');
-            } else {
-                upgradeBtn.setAttribute('disabled', 'true');
-            }
+        function saveAndExit() {
+            // Отправляем данные боту
+            const data = JSON.stringify({ score: score, power: power });
+            tg.sendData(data); 
         }
 
-        updateUI(); // Обновляем интерфейс при старте
+        updateUI();
     </script>
 </body>
 </html>
