@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Clicker Web App</title>
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <style>
+        /* Подстраиваем цвета под тему пользователя в ТГ */
+        body {
+            background-color: var(--tg-theme-bg-color, #1c1c1d);
+            color: var(--tg-theme-text-color, #ffffff);
+            font-family: sans-serif;
+            text-align: center;
+            margin: 0; padding: 20px;
+            display: flex; flex-direction: column; align-items: center;
+            user-select: none; /* Чтобы текст не выделялся при тапах */
+        }
+        #score { font-size: 48px; font-weight: bold; margin: 30px 0; }
+        
+        .click-btn {
+            background: linear-gradient(135deg, #0088cc, #005580);
+            border: none; border-radius: 50%;
+            width: 160px; height: 160px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+            transition: transform 0.1s; cursor: pointer;
+        }
+        .click-btn:active { transform: scale(0.92); box-shadow: 0 5px 10px rgba(0,0,0,0.5); }
+        
+        .shop { margin-top: 50px; width: 100%; max-width: 320px; }
+        .shop h3 { margin-bottom: 15px; text-transform: uppercase; letter-spacing: 1px; }
+        
+        .upgrade-btn {
+            background-color: var(--tg-theme-button-color, #3390ec);
+            color: var(--tg-theme-button-text-color, #ffffff);
+            border: none; border-radius: 12px;
+            padding: 15px 20px; width: 100%; font-size: 16px; font-weight: bold;
+            cursor: pointer; display: flex; justify-content: space-between;
+            transition: opacity 0.2s;
+        }
+        .upgrade-btn:disabled { background-color: #555; color: #888; cursor: not-allowed; opacity: 0.7; }
+    </style>
+</head>
+<body>
+    <h2>Коин Кликер</h2>
+    <div id="score">0</div>
+    <button class="click-btn" onclick="clickCoin()"></button>
+
+    <div class="shop">
+        <h3>Магазин</h3>
+        <button class="upgrade-btn" id="upgradeBtn" onclick="buyUpgrade()">
+            <span>+1 за клик</span>
+            <span id="cost">Цена: 10</span>
+        </button>
+    </div>
+
+    <script>
+        let tg = window.Telegram.WebApp;
+        tg.expand(); // Растягиваем на весь экран
+
+        // Базовые переменные
+        let score = 0;
+        let clickPower = 1;
+        let upgradeCost = 10;
+
+        const scoreEl = document.getElementById('score');
+        const upgradeBtn = document.getElementById('upgradeBtn');
+        const costEl = document.getElementById('cost');
+
+        function clickCoin() {
+            score += clickPower;
+            updateUI();
+            tg.HapticFeedback.impactOccurred('light'); // Легкая вибрация при клике
+        }
+
+        function buyUpgrade() {
+            if (score >= upgradeCost) {
+                score -= upgradeCost;
+                clickPower++;
+                upgradeCost = Math.floor(upgradeCost * 1.5); // Цена растет в 1.5 раза
+                updateUI();
+                tg.HapticFeedback.notificationOccurred('success'); // Вибрация успеха
+            } else {
+                tg.HapticFeedback.notificationOccurred('error');
+            }
+        }
+
+        function updateUI() {
+            scoreEl.innerText = score;
+            costEl.innerText = `Цена: ${upgradeCost}`;
+            // Делаем кнопку неактивной, если не хватает монет
+            if (score >= upgradeCost) {
+                upgradeBtn.removeAttribute('disabled');
+            } else {
+                upgradeBtn.setAttribute('disabled', 'true');
+            }
+        }
+
+        updateUI(); // Обновляем интерфейс при старте
+    </script>
+</body>
+</html>
+
